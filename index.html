@@ -78,9 +78,12 @@
   </div>
 
 <script>
-function toArrayBuffer(b64) { return Uint8Array.from(atob(b64), c=>c.charCodeAt(0)).buffer }
-function fromArrayBuffer(buf) { return btoa(String.fromCharCode(...new Uint8Array(buf))) }
-function randBytes(len){ const a=new Uint8Array(len); crypto.getRandomValues(a); return a }
+function toArrayBuffer(b64) {
+  // Correctly handle URL-safe characters and padding
+  const cleanedB64 = b64.replace(/_/g, '/').replace(/-/g, '+').trim();
+  const paddedB64 = cleanedB64.padEnd(cleanedB64.length + (4 - cleanedB64.length % 4) % 4, '=');
+  return Uint8Array.from(atob(paddedB64), c => c.charCodeAt(0)).buffer;
+}
 
 async function deriveKey(password, salt, iterations){
   const enc = new TextEncoder();
