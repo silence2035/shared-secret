@@ -1,194 +1,46 @@
-Based on the code snippets and the image you provided, I can add the necessary fixes to your script.
-
-Here is your complete, corrected HTML file. I have fixed two main issues:
-
-The Decryption Bug: I've replaced the simple toArrayBuffer function with a more robust one that correctly handles Base64 padding and URL-safe characters, which was causing the decryption to fail.
-
-The "randBytes is not defined" Error: I've reordered the functions in the <script> block so that randBytes is defined before it's called by encryptText.
-
-You can copy and paste this entire code to replace your current script.
-
-HTML
-
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Secure Shared-Key Encrypt/Decrypt (GitHub Pages)</title>
-  <style>
-    body { font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; margin:24px; background:#f7fafc; color:#0f172a }
-    .card { background:#ffffff; border-radius:12px; padding:18px; box-shadow:0 6px 18px rgba(2,6,23,0.08); max-width:900px; margin:auto; margin-top:20px }
-    h1 { margin:0 0 8px 0; font-size:20px }
-    p { margin:8px 0 16px 0; color:#475569 }
-    textarea { width:100%; min-height:120px; font-family:monospace; font-size:13px; padding:10px; border-radius:8px; border:1px solid #e2e8f0 }
-    input[type=password], input[type=text] { width:100%; padding:10px; border-radius:8px; border:1px solid #e2e8f0 }
-    .row { display:grid; grid-template-columns: 1fr 1fr; gap:12px }
-    .controls { display:flex; gap:8px; margin-top:8px }
-    button { background:#0ea5a4; color:white; padding:8px 12px; border-radius:8px; border:0; cursor:pointer }
-    button.secondary { background:#64748b }
-    small { color:#64748b }
-    .note { background:#f1f5f9; padding:10px; border-radius:8px; font-size:13px }
-    .about { background:#e0f2fe; border-radius:12px; padding:16px; max-width:900px; margin:auto; margin-bottom:20px; box-shadow:0 4px 12px rgba(2,6,23,0.05) }
-    .about h2 { margin-top:0; color:#0369a1 }
-  </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Shared Secret</title>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <div class="about">
-    <h2>About This Project</h2>
-    <p><strong>Name:</strong> Adiyaan Saleh</p>
-    <p><strong>Why I Created This:</strong> I wanted a secure, easy-to-use way for my friends and I to send secret messages that only we could read, without relying on outside services or apps. This project was built to combine strong encryption with a clean, simple interface.</p>
-    <p><strong>My Team:</strong> Exos (meaning "power") — a small but determined group dedicated to exploring new ideas and protecting our privacy.</p>
-    <p><strong>Notes:</strong></p>
-    <ul>
-      <li>This tool runs entirely in your browser — no data is stored or sent to a server.</li>
-      <li>Make sure your shared key is strong; a good passphrase is your first line of defence.</li>
-      <li>Encryption is fun, but security also depends on the people using it responsibly.</li>
-    </ul>
-  </div>
+  <header>
+    <h1>🔐 Shared Secret</h1>
+    <p>Securely share and manage confidential information.</p>
+  </header>
 
-  <div class="card">
-    <h1>Secure shared-key encrypt / decrypt</h1>
-    <p>Type a secret message and a shared word (password). The page uses the browser <strong>Web Crypto API</strong> with PBKDF2 and AES‑GCM. Result is a single Base64 blob you can paste into your chat. Anyone who knows the shared word can decrypt it here.</p>
+  <main>
+    <section id="share">
+      <h2>Share a Secret</h2>
+      <form>
+        <label for="secret">Enter your secret:</label>
+        <textarea id="secret" name="secret" rows="5"></textarea>
+        <button type="submit">Encrypt & Share</button>
+      </form>
+    </section>
 
-    <div>
-      <label><strong>Plaintext</strong></label>
-      <textarea id="plaintext" placeholder="Type your message here..."></textarea>
-      <div style="margin-top:8px; display:grid; grid-template-columns: 2fr 1fr; gap:8px">
-        <input id="password" type="password" placeholder="Shared word / password" />
-        <input id="iterations" type="text" value="250000" title="PBKDF2 iterations" />
-      </div>
-      <div class="controls">
-        <button id="encryptBtn">Encrypt →</button>
-        <button id="clearPlain" class="secondary">Clear</button>
-        <button id="genStrong" class="secondary">Generate strong random password</button>
-      </div>
-    </div>
+    <section id="receive">
+      <h2>Retrieve a Secret</h2>
+      <form>
+        <label for="key">Enter your key:</label>
+        <input type="text" id="key" name="key" />
+        <button type="submit">Decrypt</button>
+      </form>
+    </section>
+  </main>
 
-    <hr style="margin:18px 0" />
-
-    <div>
-      <label><strong>Ciphertext (base64)</strong></label>
-      <textarea id="ciphertext" placeholder="Encrypted blob will appear here, or paste one to decrypt"></textarea>
-      <div class="controls">
-        <button id="decryptBtn">Decrypt ←</button>
-        <button id="clearCipher" class="secondary">Clear</button>
-        <button id="copyCipher" class="secondary">Copy</button>
-      </div>
-    </div>
-
-    <hr style="margin:18px 0" />
-    <div class="note">
-      <strong>Security notes:</strong>
-      <ul>
-        <li>Use a strong shared word — not a simple dictionary word. Consider a passphrase.</li>
-        <li>GitHub Pages uses HTTPS so the page will load securely. The secret never leaves your browser.</li>
-        <li>Don't store the password or ciphertext in insecure places unless you want others to decrypt it.</li>
-        <li>PBKDF2 iterations default to 250,000 — increase if you want more protection but it will be slower on low-end devices.</li>
-      </ul>
-    </div>
-  </div>
-
-<script>
-// Correct order: functions that are depended on should come first
-function randBytes(len){ const a=new Uint8Array(len); crypto.getRandomValues(a); return a }
-
-function fromArrayBuffer(buf) { return btoa(String.fromCharCode(...new Uint8Array(buf))) }
-
-// The fixed toArrayBuffer function
-function toArrayBuffer(b64) {
-  const cleanedB64 = b64.replace(/_/g, '/').replace(/-/g, '+').trim();
-  const paddedB64 = cleanedB64.padEnd(cleanedB64.length + (4 - cleanedB64.length % 4) % 4, '=');
-  return Uint8Array.from(atob(paddedB64), c=>c.charCodeAt(0)).buffer;
-}
-
-async function deriveKey(password, salt, iterations){
-  const enc = new TextEncoder();
-  const baseKey = await crypto.subtle.importKey('raw', enc.encode(password), {name:'PBKDF2'}, false, ['deriveKey']);
-  return crypto.subtle.deriveKey(
-    {name:'PBKDF2', salt:salt, iterations:iterations, hash:'SHA-256'},
-    baseKey,
-    {name:'AES-GCM', length:256},
-    false,
-    ['encrypt','decrypt']
-  );
-}
-
-async function encryptText(plaintext, password, iterations=250000){
-  const enc = new TextEncoder();
-  const salt = randBytes(16);
-  const iv = randBytes(12);
-  const key = await deriveKey(password, salt.buffer, iterations);
-  const ct = await crypto.subtle.encrypt({name:'AES-GCM', iv:iv}, key, enc.encode(plaintext));
-  const version = new Uint8Array([1]);
-  const blob = new Uint8Array(version.length + salt.length + iv.length + ct.byteLength);
-  blob.set(version,0);
-  blob.set(salt, version.length);
-  blob.set(iv, version.length + salt.length);
-  blob.set(new Uint8Array(ct), version.length + salt.length + iv.length);
-  return fromArrayBuffer(blob.buffer);
-}
-
-async function decryptText(b64blob, password, iterations=250000){
-  const raw = new Uint8Array(toArrayBuffer(b64blob));
-  if(raw.length < 1+16+12) throw new Error('Blob too short');
-  const version = raw[0];
-  if(version !== 1) throw new Error('Unknown version');
-  const salt = raw.slice(1,1+16);
-  const iv = raw.slice(1+16,1+16+12);
-  const ct = raw.slice(1+16+12);
-  const key = await deriveKey(password, salt.buffer, iterations);
-  const dec = await crypto.subtle.decrypt({name:'AES-GCM', iv:iv}, key, ct.buffer);
-  return new TextDecoder().decode(dec);
-}
-
-const plaintextEl = document.getElementById('plaintext');
-const passwordEl = document.getElementById('password');
-const ciphertextEl = document.getElementById('ciphertext');
-const encryptBtn = document.getElementById('encryptBtn');
-const decryptBtn = document.getElementById('decryptBtn');
-const clearPlain = document.getElementById('clearPlain');
-const clearCipher = document.getElementById('clearCipher');
-const copyCipher = document.getElementById('copyCipher');
-const genStrong = document.getElementById('genStrong');
-const iterationsEl = document.getElementById('iterations');
-
-encryptBtn.addEventListener('click', async ()=>{
-  try{
-    const pwd = passwordEl.value;
-    if(!pwd) return alert('Enter the shared word / password');
-    const iter = parseInt(iterationsEl.value) || 250000;
-    encryptBtn.disabled = true;
-    encryptBtn.textContent = 'Encrypting...';
-    const out = await encryptText(plaintextEl.value, pwd, iter);
-    ciphertextEl.value = out;
-  }catch(e){ alert('Encrypt error: '+e.message) }
-  finally{ encryptBtn.disabled=false; encryptBtn.textContent='Encrypt →' }
-});
-
-decryptBtn.addEventListener('click', async ()=>{
-  try{
-    const pwd = passwordEl.value;
-    if(!pwd) return alert('Enter the shared word / password');
-    const iter = parseInt(iterationsEl.value) || 250000;
-    decryptBtn.disabled = true;
-    decryptBtn.textContent = 'Decrypting...';
-    const plain = await decryptText(ciphertextEl.value.trim(), pwd, iter);
-    plaintextEl.value = plain;
-  }catch(e){ alert('Decrypt error: '+(e.message || e)) }
-  finally{ decryptBtn.disabled=false; decryptBtn.textContent='Decrypt ←' }
-});
-
-clearPlain.addEventListener('click', ()=> plaintextEl.value='');
-clearCipher.addEventListener('click', ()=> ciphertextEl.value='');
-copyCipher.addEventListener('click', async ()=>{ await navigator.clipboard.writeText(ciphertextEl.value); alert('Copied') });
-
-genStrong.addEventListener('click', ()=>{
-  const rnd = crypto.getRandomValues(new Uint8Array(16));
-  const pass = Array.from(rnd).map(b=>('0'+(b%36).toString(36)).slice(-1)).join('') + '!';
-  passwordEl.value = pass;
-  passwordEl.type = 'text';
-});
-</script>
+  <footer>
+    <section id="about">
+      <h2>About Me</h2>
+      <p>
+        Hi, I’m Adiyaan Saleh (aka <strong>silence2035</strong>). I created this project to make secure, simple secret sharing accessible for everyone. 
+        This tool uses modern encryption practices to ensure your data remains private.
+      </p>
+    </section>
+    <p>&copy; 2025 Shared Secret. All rights reserved.</p>
+  </footer>
 </body>
 </html>
