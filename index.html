@@ -1,46 +1,241 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Shared Secret</title>
-  <link rel="stylesheet" href="style.css" />
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Secure Shared-Key Encrypt/Decrypt (GitHub Pages)</title>
+  <style>
+    :root{--bg:#f7fafc;--card:#fff;--muted:#475569;--accent:#0ea5a4;--muted2:#64748b}
+    body { font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; margin:24px; background:var(--bg); color:#0f172a }
+    .wrap{max-width:980px;margin:0 auto}
+    header{display:flex;gap:12px;align-items:center}
+    header h1{margin:0;font-size:22px}
+    .card { background:var(--card); border-radius:12px; padding:18px; box-shadow:0 6px 18px rgba(2,6,23,0.08); margin-top:18px }
+    label{display:block;font-weight:600;margin:8px 0 6px}
+    p { margin:8px 0 16px 0; color:var(--muted) }
+    textarea,input[type=text], input[type=password], input[type=number] { width:100%; padding:10px; border-radius:8px; border:1px solid #e2e8f0; font-family:monospace; font-size:13px }
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .controls { display:flex; gap:8px; margin-top:8px }
+    button { background:var(--accent); color:white; padding:8px 12px; border-radius:8px; border:0; cursor:pointer }
+    button.secondary { background:var(--muted2) }
+    .note { background:#f1f5f9; padding:10px; border-radius:8px; font-size:13px }
+    .about { background:#e0f2fe; border-radius:12px; padding:16px; margin-top:18px; box-shadow:0 4px 12px rgba(2,6,23,0.05) }
+    small{color:var(--muted2)}
+    .row{display:flex;gap:8px}
+    .muted-inline{color:var(--muted);font-size:13px}
+  </style>
 </head>
 <body>
-  <header>
-    <h1>🔐 Shared Secret</h1>
-    <p>Securely share and manage confidential information.</p>
-  </header>
+  <div class="wrap">
+    <header>
+      <div style="font-size:28px">🔐</div>
+      <div>
+        <h1>Secure shared-key encrypt / decrypt</h1>
+        <div class="muted-inline">AES‑GCM (256) with PBKDF2 key derivation — all crypto runs in your browser.</div>
+      </div>
+    </header>
 
-  <main>
-    <section id="share">
-      <h2>Share a Secret</h2>
-      <form>
-        <label for="secret">Enter your secret:</label>
-        <textarea id="secret" name="secret" rows="5"></textarea>
-        <button type="submit">Encrypt & Share</button>
-      </form>
-    </section>
+    <div class="card" id="mainCard">
+      <p>Enter a plaintext and either a passphrase (derived to an AES key via PBKDF2) or a raw AES key (hex). Use the same method & key to decrypt.</p>
 
-    <section id="receive">
-      <h2>Retrieve a Secret</h2>
-      <form>
-        <label for="key">Enter your key:</label>
-        <input type="text" id="key" name="key" />
-        <button type="submit">Decrypt</button>
-      </form>
-    </section>
-  </main>
+      <label for="plaintext">Plaintext</label>
+      <textarea id="plaintext" placeholder="Type your message here..."></textarea>
 
-  <footer>
-    <section id="about">
-      <h2>About Me</h2>
-      <p>
-        Hi, I’m Adiyaan Saleh (aka <strong>silence2035</strong>). I created this project to make secure, simple secret sharing accessible for everyone. 
-        This tool uses modern encryption practices to ensure your data remains private.
-      </p>
-    </section>
-    <p>&copy; 2025 Shared Secret. All rights reserved.</p>
-  </footer>
+      <div style="height:8px"></div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:center">
+        <div>
+          <label for="passphrase">Passphrase (human-friendly)</label>
+          <input id="passphrase" type="password" placeholder="Enter passphrase (recommended)" />
+          <small class="muted-inline">PBKDF2 → AES‑GCM key (default 250,000 iterations)</small>
+        </div>
+
+        <div>
+          <label for="rawKey">— OR raw AES key (hex, 64 chars for 256‑bit)</label>
+          <input id="rawKey" type="text" placeholder="e.g. a3f1... (64 hex chars)" />
+          <small class="muted-inline">If provided, raw key overrides passphrase derivation.</small>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 120px;gap:12px;margin-top:8px;align-items:center">
+        <input id="iterations" type="number" value="250000" min="1000" step="1000" />
+        <div style="font-size:13px;color:var(--muted);">PBKDF2 iterations</div>
+      </div>
+
+      <div class="controls">
+        <button id="encryptBtn">Encrypt →</button>
+        <button id="clearPlain" class="secondary">Clear</button>
+        <button id="genKey" class="secondary">Generate random AES key</button>
+        <button id="genPass" class="secondary">Generate strong passphrase</button>
+      </div>
+
+      <hr style="margin:16px 0" />
+
+      <label for="ciphertext">Ciphertext (Base64)</label>
+      <textarea id="ciphertext" placeholder="Encrypted blob will appear here — copy/paste to share"></textarea>
+      <div class="controls">
+        <button id="decryptBtn">Decrypt ←</button>
+        <button id="clearCipher" class="secondary">Clear</button>
+        <button id="copyCipher" class="secondary">Copy</button>
+      </div>
+
+      <hr style="margin:16px 0" />
+
+      <div class="note">
+        <strong>Format</strong>: version(1 byte) || salt(16 bytes) || iv(12 bytes) || ciphertext. The whole blob is Base64.
+        <ul>
+          <li>Provide the <em>exact</em> same passphrase or raw key when decrypting.</li>
+          <li>If you use a raw AES key, enter it in hex (64 hex characters for 256‑bit).</li>
+          <li>Everything happens locally — the page never sends your secrets anywhere.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="about">
+      <h2>About This Project</h2>
+      <p><strong>Name:</strong> Adiyaan Saleh</p>
+      <p><strong>Why I Created This:</strong> I wanted a secure, easy-to-use way for my friends and I to send secret messages that only we could read, without relying on outside services or apps. This project was built to combine strong encryption with a clean, simple interface.</p>
+      <p><strong>My Team:</strong> Exos (meaning "power") — a small but determined group dedicated to exploring new ideas and protecting our privacy.</p>
+      <p><strong>Notes:</strong></p>
+      <ul>
+        <li>This tool runs entirely in your browser — no data is stored or sent to a server.</li>
+        <li>Make sure your shared key is strong; a good passphrase is your first line of defence.</li>
+        <li>Encryption is fun, but security also depends on the people using it responsibly.</li>
+      </ul>
+    </div>
+  </div>
+
+<script>
+// Helpers
+function fromArrayBuffer(buf){ return btoa(String.fromCharCode(...new Uint8Array(buf))) }
+function toArrayBuffer(b64){ return Uint8Array.from(atob(b64), c=>c.charCodeAt(0)).buffer }
+function hexToBytes(hex){ if(!hex) return null; const h=hex.replace(/[^0-9a-f]/gi,''); if(h.length%2) return null; const arr=new Uint8Array(h.length/2); for(let i=0;i<h.length;i+=2) arr[i/2]=parseInt(h.substr(i,2),16); return arr }
+function bytesToHex(bytes){ return Array.from(bytes).map(b=>b.toString(16).padStart(2,'0')).join('') }
+function randBytes(len){ const a=new Uint8Array(len); crypto.getRandomValues(a); return a }
+
+async function deriveKeyFromPassphrase(passphrase, salt, iterations){
+  const enc = new TextEncoder();
+  const baseKey = await crypto.subtle.importKey('raw', enc.encode(passphrase), {name:'PBKDF2'}, false, ['deriveKey']);
+  return crypto.subtle.deriveKey(
+    {name:'PBKDF2', salt: salt, iterations: iterations, hash: 'SHA-256'},
+    baseKey,
+    {name:'AES-GCM', length:256},
+    false,
+    ['encrypt','decrypt']
+  );
+}
+
+async function importRawAesKey(rawBytes){
+  return crypto.subtle.importKey('raw', rawBytes, {name:'AES-GCM', length:256}, false, ['encrypt','decrypt']);
+}
+
+// Format: version(1) || salt(16) || iv(12) || ciphertext
+async function encryptText(plaintext, passphrase, rawKeyHex, iterations=250000){
+  const enc = new TextEncoder();
+  const salt = randBytes(16);
+  const iv = randBytes(12);
+  let key;
+  if(rawKeyHex){
+    const raw = hexToBytes(rawKeyHex);
+    if(!raw || raw.byteLength !== 32) throw new Error('Raw key must be 32 bytes (64 hex chars)');
+    key = await importRawAesKey(raw.buffer);
+  } else {
+    key = await deriveKeyFromPassphrase(passphrase, salt.buffer, iterations);
+  }
+  const ct = await crypto.subtle.encrypt({name:'AES-GCM', iv: iv}, key, enc.encode(plaintext));
+  const version = new Uint8Array([1]);
+  const blob = new Uint8Array(version.length + salt.length + iv.length + ct.byteLength);
+  blob.set(version,0);
+  blob.set(salt, version.length);
+  blob.set(iv, version.length + salt.length);
+  blob.set(new Uint8Array(ct), version.length + salt.length + iv.length);
+  return fromArrayBuffer(blob.buffer);
+}
+
+async function decryptText(b64blob, passphrase, rawKeyHex, iterations=250000){
+  const raw = new Uint8Array(toArrayBuffer(b64blob));
+  if(raw.length < 1+16+12) throw new Error('Blob too short');
+  const version = raw[0];
+  if(version !== 1) throw new Error('Unknown version');
+  const salt = raw.slice(1,1+16);
+  const iv = raw.slice(1+16,1+16+12);
+  const ct = raw.slice(1+16+12).buffer;
+  let key;
+  if(rawKeyHex){
+    const r = hexToBytes(rawKeyHex);
+    if(!r || r.byteLength !== 32) throw new Error('Raw key must be 32 bytes (64 hex chars)');
+    key = await importRawAesKey(r.buffer);
+  } else {
+    key = await deriveKeyFromPassphrase(passphrase, salt.buffer, iterations);
+  }
+  const dec = await crypto.subtle.decrypt({name:'AES-GCM', iv: iv}, key, ct);
+  return new TextDecoder().decode(dec);
+}
+
+// UI
+const plaintextEl = document.getElementById('plaintext');
+const passphraseEl = document.getElementById('passphrase');
+const rawKeyEl = document.getElementById('rawKey');
+const iterationsEl = document.getElementById('iterations');
+const ciphertextEl = document.getElementById('ciphertext');
+const encryptBtn = document.getElementById('encryptBtn');
+const decryptBtn = document.getElementById('decryptBtn');
+const clearPlain = document.getElementById('clearPlain');
+const clearCipher = document.getElementById('clearCipher');
+const copyCipher = document.getElementById('copyCipher');
+const genKey = document.getElementById('genKey');
+const genPass = document.getElementById('genPass');
+
+encryptBtn.addEventListener('click', async ()=>{
+  try{
+    const text = plaintextEl.value || '';
+    const pass = passphraseEl.value || '';
+    const rawKey = rawKeyEl.value.trim() || '';
+    const iter = parseInt(iterationsEl.value) || 250000;
+    if(!text) return alert('Enter plaintext to encrypt');
+    if(!rawKey && !pass) return alert('Enter a passphrase or a raw AES key (hex)');
+    encryptBtn.disabled=true; encryptBtn.textContent='Encrypting...';
+    const out = await encryptText(text, pass, rawKey || null, iter);
+    ciphertextEl.value = out;
+  }catch(e){ alert('Encrypt error: '+e.message) }
+  finally{ encryptBtn.disabled=false; encryptBtn.textContent='Encrypt →' }
+});
+
+decryptBtn.addEventListener('click', async ()=>{
+  try{
+    const blob = ciphertextEl.value.trim();
+    const pass = passphraseEl.value || '';
+    const rawKey = rawKeyEl.value.trim() || '';
+    const iter = parseInt(iterationsEl.value) || 250000;
+    if(!blob) return alert('Paste the ciphertext to decrypt');
+    if(!rawKey && !pass) return alert('Enter a passphrase or a raw AES key (hex)');
+    decryptBtn.disabled=true; decryptBtn.textContent='Decrypting...';
+    const plain = await decryptText(blob, pass, rawKey || null, iter);
+    plaintextEl.value = plain;
+  }catch(e){ alert('Decrypt error: '+(e.message||e)) }
+  finally{ decryptBtn.disabled=false; decryptBtn.textContent='Decrypt ←' }
+});
+
+clearPlain.addEventListener('click', ()=> plaintextEl.value='');
+clearCipher.addEventListener('click', ()=> ciphertextEl.value='');
+copyCipher.addEventListener('click', async ()=>{ try{ await navigator.clipboard.writeText(ciphertextEl.value); alert('Copied') }catch(e){ alert('Copy failed') } });
+
+// Generate a raw AES key (hex)
+genKey.addEventListener('click', ()=>{
+  const k = randBytes(32);
+  rawKeyEl.value = bytesToHex(k);
+  passphraseEl.value = '';
+  passphraseEl.type = 'text';
+});
+
+// Generate a pronounceable-ish passphrase for humans
+genPass.addEventListener('click', ()=>{
+  const words = ['ember','oak','ridge','lumen','strike','nova','crest','river','shade','bloom'];
+  const p = Array.from({length:4}, ()=>words[Math.floor(Math.random()*words.length)]).join('-') + '!' + Math.floor(Math.random()*90+10);
+  passphraseEl.value = p;
+  rawKeyEl.value = '';
+  passphraseEl.type = 'text';
+});
+</script>
 </body>
 </html>
